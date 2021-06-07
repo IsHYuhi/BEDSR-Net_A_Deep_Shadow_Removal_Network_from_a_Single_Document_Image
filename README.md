@@ -1,0 +1,1 @@
+# BEDSR-Net_A_Deep_Shadow_Removal_Network_from_a_Single_Document_Image
