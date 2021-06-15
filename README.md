@@ -4,7 +4,7 @@ This repository is unofficial implementation of  [BEDSR-Net: A Deep Shadow Remov
 
 ## Requirements
 * Python3.x
-* PyTorch 1.5.0
+* PyTorch 1.8.0
 * pillow
 * matplotlib
 
