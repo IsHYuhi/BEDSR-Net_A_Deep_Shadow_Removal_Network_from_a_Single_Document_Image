@@ -4,6 +4,15 @@ This repository is unofficial implementation of  [BEDSR-Net: A Deep Shadow Remov
 
 ### [🔥Online Demo!(Google CoLab)](https://github.com/IsHYuhi/BEDSR-Net_A_Deep_Shadow_Removal_Network_from_a_Single_Document_Image/blob/main/demo.ipynb)
 
+
+
+## Results
+### Results from BEDSR-Net pretrained on Jung dataset  
+
+|　　　Shadow image　　　|　　　Non-shadow image　　　|　　　　Attention Map　　　　|Background color|
+|:-:|:-:|:-:|:-:|
+|![](result/shadow_image.jpg)|![](result/non-shadow_image.jpg)|![](result/attention_map.jpg)|![](result/background_color.jpg)|
+
 ## TODO
 * [x] implementation of BE-Net
 * [x] training code for BE-Net
