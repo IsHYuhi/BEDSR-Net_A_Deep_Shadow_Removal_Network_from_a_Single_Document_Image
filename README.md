@@ -9,7 +9,7 @@ This repository is unofficial implementation of  [BEDSR-Net: A Deep Shadow Remov
 ## Results
 ### Results from BEDSR-Net pretrained on Jung dataset  
 
-|　　　Shadow image　　　|　　　Non-shadow image　　　|　　　　Attention Map　　　　|Background color|
+|Shadow image|Non-shadow image|Attention Map|Background color|
 |:-:|:-:|:-:|:-:|
 |![](result/shadow_image.jpg)|![](result/non-shadow_image.jpg)|![](result/attention_map.jpg)|![](result/background_color.jpg)|
 
