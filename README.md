@@ -11,8 +11,7 @@ This repository is unofficial implementation of  [BEDSR-Net: A Deep Shadow Remov
 
 |Shadow image|Non-shadow image|Attention Map|Background color|
 |:-:|:-:|:-:|:-:|
-|![](result/shadow_image.jpg)|![](result/non-shadow_image.jpg)|![](result/attention_map.jpg)|![](result/background_color.jpg)|
-
+|<img src="result/shadow_image.jpg" width="1536">|<img src="result/non-shadow_image.jpg" width="1536">|<img src="result/attention_map.jpg" width="1436">|<img src="result/background_color.jpg" width="1236">|
 ## TODO
 * [x] implementation of BE-Net
 * [x] training code for BE-Net
