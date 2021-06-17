@@ -1,9 +1,9 @@
 from collections import OrderedDict
 
 def fix_model_state_dict(state_dict):
-    '''
+    """
     remove 'module.' of dataparallel
-    '''
+    """
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
         name = k

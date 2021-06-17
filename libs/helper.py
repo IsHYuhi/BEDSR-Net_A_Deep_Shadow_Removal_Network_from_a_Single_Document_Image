@@ -25,7 +25,7 @@ def do_one_iteration(
     device: str,
     iter_type: str,
     optimizer: Optional[optim.Optimizer] = None,
-) -> Tuple[int, float, float, np.ndarray, np.ndarray]:
+) -> Tuple[int, float, np.ndarray, np.ndarray]:
 
     if iter_type not in ["train", "evaluate"]:
         message = "iter_type must be either 'train' or 'evaluate'."
@@ -46,12 +46,7 @@ def do_one_iteration(
     output = model(x)
     loss = criterion(output, t)
 
-    # measure accuracy and record loss
-    #accs = calc_accuracy(output, t, topk=(1,))
-    #acc1 = accs[0]
-
     # keep predicted results and gts for calculate F1 Score
-    #_, pred = output.max(dim=1)
     gt = t.to("cpu").numpy()
     pred = output.detach().to("cpu").numpy()
 
@@ -61,7 +56,7 @@ def do_one_iteration(
         loss.backward()
         optimizer.step()
 
-    return batch_size, loss.item(), gt, pred # acc1
+    return batch_size, loss.item(), gt, pred
 
 
 def train(
@@ -77,7 +72,6 @@ def train(
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
     losses = AverageMeter("Loss", ":.4e")
-    #top1 = AverageMeter("Acc@1", ":6.2f")
 
     progress = ProgressMeter(
         len(loader),
@@ -102,7 +96,6 @@ def train(
         )
 
         losses.update(loss, batch_size)
-        #top1.update(acc1, batch_size)
 
         # save the ground truths and predictions in lists
         gts += list(gt)
@@ -116,25 +109,18 @@ def train(
         if i != 0 and i % interval_of_progress == 0:
             progress.display(i)
 
-    # calculate F1 Score
-    #f1s = f1_score(gts, preds, average="macro")
 
-    return losses.get_average()#, top1.get_average(), f1s
+    return losses.get_average()
 
 
 def evaluate(
     loader: DataLoader, model: nn.Module, criterion: Any, device: str
-) -> Tuple[float, float, float, np.ndarray]:
+) -> Tuple[float]:
     losses = AverageMeter("Loss", ":.4e")
-    #top1 = AverageMeter("Acc@1", ":6.2f")
 
     # keep predicted results and gts for calculate F1 Score
     gts = []
     preds = []
-
-    # calculate confusion matrix
-    #n_classes = loader.dataset.get_n_classes()
-    #c_matrix = np.zeros((n_classes, n_classes), dtype=np.int32)
 
     # switch to evaluate mode
     model.eval()
@@ -146,18 +132,9 @@ def evaluate(
             )
 
             losses.update(loss, batch_size)
-            #top1.update(acc1, batch_size)
 
             # keep predicted results and gts for calculate F1 Score
             gts += list(gt)
             preds += list(pred)
 
-    #         c_matrix += confusion_matrix(
-    #             gt,
-    #             pred,
-    #             labels=[i for i in range(n_classes)],
-    #         )
-
-    # f1s = f1_score(gts, preds, average="macro")
-
-    return losses.get_average()#, f1s, c_matrix #  top1.get_average()
+    return losses.get_average()

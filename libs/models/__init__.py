@@ -6,11 +6,11 @@ from . import models
 
 __all__ = ["get_model"]
 
-model_names = ["benet", "cam_benet", "srnet", "stcgan"]
+model_names = ["benet", "cam_benet", "bedsrnet", "srnet"]
 logger = getLogger(__name__)
 
 
-def get_model(name: str, n_classes: int, pretrained: bool = True) -> nn.Module:
+def get_model(name: str, in_channels: int = True, pretrained: bool = True) -> nn.Module:
     name = name.lower()
     if name not in model_names:
         message = (
@@ -22,6 +22,11 @@ def get_model(name: str, n_classes: int, pretrained: bool = True) -> nn.Module:
 
     logger.info("{} will be used as a model.".format(name))
 
-    model = getattr(models, name)(pretrained=pretrained)
+    if name == "srnet":
+        generator = getattr(models, "generator")(pretrained=pretrained)
+        discriminator = getattr(models, "discriminator")(pretrained=pretrained)
+        model = [generator, discriminator]
+    else:
+        model = getattr(models, name)(in_channels=in_channels, pretrained=pretrained)
 
     return model

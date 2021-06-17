@@ -6,9 +6,8 @@ import torch
 import cv2
 from torch.utils.data import DataLoader, Dataset
 
-# from torchvision import transforms
 import albumentations as A
-
+import numpy as np
 from .dataset_csv import DATASET_CSVS
 
 __all__ = ["get_dataloader"]
@@ -18,6 +17,7 @@ logger = getLogger(__name__)
 
 def get_dataloader(
     dataset_name: str,
+    train_model: str,
     split: str,
     batch_size: int,
     shuffle: bool,
@@ -31,6 +31,11 @@ def get_dataloader(
         logger.error(message)
         raise ValueError(message)
 
+    if train_model not in ["benet", "bedsrnet", "stcgan-be"]:
+        message = f"dataset_name should be selected from ['benet', 'srnet', 'stcgan-be']."
+        logger.error(message)
+        raise ValueError(message)
+
     if split not in ["train", "val", "test"]:
         message = "split should be selected from ['train', 'val', 'test']."
         logger.error(message)
@@ -39,8 +44,13 @@ def get_dataloader(
     logger.info(f"Dataset: {dataset_name}\tSplit: {split}\tBatch size: {batch_size}.")
 
     csv_file = getattr(DATASET_CSVS[dataset_name], split)
+    if train_model == "benet":
+        data = BackGroundDataset(csv_file, transform=transform)
+    elif train_model == "bedsrnet":
+        data = ShadowDocumentDataset(csv_file, transform=transform)
+    elif train_model == "stcgan-be":
+        data = ShadowDocumentDataset(csv_file, transform=transform)
 
-    data = BackGroundDataset(csv_file, transform=transform)
     dataloader = DataLoader(
         data,
         batch_size=batch_size,
@@ -78,6 +88,7 @@ class BackGroundDataset(Dataset):
             img = self.transform(image=img)
 
         bgr = torch.Tensor([self.df.iloc[idx]["B"], self.df.iloc[idx]["G"], self.df.iloc[idx]["R"]])/255
+        bgr = (bgr-0.5)/0.5
 
         sample = {"img": img["image"], "bgr": bgr, "img_path": img_path}
 
@@ -107,10 +118,12 @@ class ShadowDocumentDataset(Dataset):
         img = cv2.imread(img_path)
         gt = cv2.imread(gt_path)
 
+        images = np.concatenate([img, gt], axis=2)
+
         if self.transform is not None:
-            res = self.transform(image=img, mask=gt)
-            img = res["image"]
-            gt = res["mask"]
+            res = self.transform(image=images)['image']
+            img = res[0:3,:,:]
+            gt = res[3:,:,:]
 
         sample = {"img": img, "gt": gt, "img_path": img_path}
 

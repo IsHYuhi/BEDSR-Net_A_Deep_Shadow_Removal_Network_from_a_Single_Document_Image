@@ -24,14 +24,12 @@ from albumentations import (
 from albumentations.pytorch import ToTensorV2
 
 from libs.checkpoint import resume, save_checkpoint
-#from libs.class_id_map import get_cls2id_map
 from libs.config import get_config
 from libs.dataset import get_dataloader
 from libs.device import get_device
 from libs.helper import evaluate, train
 from libs.logger import TrainLogger
 from libs.loss_fn import get_criterion
-#from libs.mean_std import get_mean, get_std
 from libs.models import get_model
 from libs.seed import set_seed
 
@@ -105,7 +103,6 @@ def main() -> None:
             HorizontalFlip(),
             ColorJitter(brightness=0.5, contrast=1.5, saturation=2),
             Normalize(mean=(0.5, ), std=(0.5, )),
-            #Normalize(mean=get_mean(), std=get_std()),
             ToTensorV2()
             ]
     )
@@ -114,6 +111,7 @@ def main() -> None:
 
     train_loader = get_dataloader(
         config.dataset_name,
+        config.model,
         "train",
         batch_size=config.batch_size,
         shuffle=True,
@@ -125,6 +123,7 @@ def main() -> None:
 
     val_loader = get_dataloader(
         config.dataset_name,
+        config.model,
         "val",
         batch_size=1,
         shuffle=False,
@@ -133,12 +132,9 @@ def main() -> None:
         transform=val_transform,
     )
 
-    # the number of classes
-    n_classes = 1
-
     # define a model
-    model = get_model(config.model, n_classes, pretrained=config.pretrained)
-
+    model = get_model(config.model, in_channels=3, pretrained=config.pretrained)
+    
     # send the model to cuda/cpu
     model.to(device)
 
@@ -194,7 +190,7 @@ def main() -> None:
             best_loss = val_loss
             torch.save(
                 model.state_dict(),
-                os.path.join(result_path, "best_model.prm"),
+                os.path.join(result_path, "pretrained_benet.prm"),
             )
 
         # save checkpoint every epoch
@@ -206,10 +202,8 @@ def main() -> None:
             optimizer.param_groups[0]["lr"],
             train_time,
             train_loss,
-            #train_f1s,
             val_time,
             val_loss,
-            #val_f1s,
         )
 
         # save logs to wandb
@@ -219,16 +213,14 @@ def main() -> None:
                     "lr": optimizer.param_groups[0]["lr"],
                     "train_time[sec]": train_time,
                     "train_loss": train_loss,
-                    #"train_f1s": train_f1s,
                     "val_time[sec]": val_time,
                     "val_loss": val_loss,
-                    #"val_f1s": val_f1s,
                 },
                 step=epoch,
             )
 
     # save models
-    torch.save(model.state_dict(), os.path.join(result_path, "pretrained_benet.prm"))
+    torch.save(model.state_dict(), os.path.join(result_path, "checkpoint.prm"))
 
     # delete checkpoint
     os.remove(os.path.join(result_path, "checkpoint.pth"))
