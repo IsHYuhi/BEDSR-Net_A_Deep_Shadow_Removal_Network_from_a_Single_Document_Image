@@ -16,8 +16,10 @@ def get_criterion(
 ) -> nn.Module:
 
     if loss_function_name == 'L1':
-        criterion = nn.L1Loss()
+        criterion = nn.L1Loss().to(device)
+    elif loss_function_name == 'GAN':
+        criterion = [nn.L1Loss().to(device), nn.BCEWithLogitsLoss().to(device)]
     else:
-        criterion = nn.L1Loss()
+        criterion = nn.L1Loss().to(device)
 
     return criterion

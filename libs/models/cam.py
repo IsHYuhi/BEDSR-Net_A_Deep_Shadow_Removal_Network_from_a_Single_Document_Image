@@ -58,7 +58,7 @@ class CAM(object):
             prob, idx = torch.max(prob, dim=1)
             idx = idx.item()
             prob = prob.item()
-            print("predicted class ids {}\t probability {}".format(idx, prob))
+            # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # cam can be calculated from the weights of linear layer and activations
         weight_fc = list(
@@ -66,7 +66,7 @@ class CAM(object):
 
         cam = self.getCAM(self.values, weight_fc, idx)
 
-        return cam, idx
+        return score, cam, idx
 
     def __call__(self, x):
         return self.forward(x)
@@ -123,12 +123,12 @@ class GradCAM(CAM):
             prob, idx = torch.max(prob, dim=1)
             idx = idx.item()
             prob = prob.item()
-            print("predicted class ids {}\t probability {}".format(idx, prob))
+            # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # caluculate cam of the predicted class
         cam = self.getGradCAM(self.values, score, idx)
 
-        return cam, idx
+        return score, cam, idx
 
     def __call__(self, x):
         return self.forward(x)
@@ -189,12 +189,12 @@ class GradCAMpp(CAM):
             prob, idx = torch.max(prob, dim=1)
             idx = idx.item()
             prob = prob.item()
-            print("predicted class ids {}\t probability {}".format(idx, prob))
+            # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # caluculate cam of the predicted class
         cam = self.getGradCAMpp(self.values, score, idx)
 
-        return cam, idx
+        return score, cam, idx
 
     def __call__(self, x):
         return self.forward(x)

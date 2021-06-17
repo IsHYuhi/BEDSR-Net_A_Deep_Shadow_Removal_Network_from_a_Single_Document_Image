@@ -16,7 +16,7 @@ logger = getLogger(__name__)
 class Config:
     """Experimental configuration class."""
 
-    model: str = "benet"
+    model: str = "bedsrnet  "
     pretrained: bool = True
 
     batch_size: int = 32
@@ -32,6 +32,12 @@ class Config:
     dataset_name: str = "Jung"
 
     loss_function_name: str = "L1"
+
+    lambda1: float = 1
+    lambda2: float = 0.01
+
+    beta1: float = 0.5
+    beta2: float = 0.999
 
     def __post_init__(self) -> None:
         self._type_check()
