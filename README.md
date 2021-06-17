@@ -4,6 +4,7 @@ This repository is unofficial implementation of  [BEDSR-Net: A Deep Shadow Remov
 
 ### [🔥Online Demo!(Google CoLab)](https://github.com/IsHYuhi/BEDSR-Net_A_Deep_Shadow_Removal_Network_from_a_Single_Document_Image/blob/main/demo.ipynb)
 
+<img width="952" alt="architecture" src="https://user-images.githubusercontent.com/38097069/122442995-1a89f100-cfda-11eb-92ae-160124b5f91d.png">
 
 
 ## Results
