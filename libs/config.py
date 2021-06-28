@@ -33,7 +33,7 @@ class Config:
 
     loss_function_name: str = "L1"
 
-    lambda1: float = 1
+    lambda1: float = 1.0
     lambda2: float = 0.01
 
     beta1: float = 0.5
