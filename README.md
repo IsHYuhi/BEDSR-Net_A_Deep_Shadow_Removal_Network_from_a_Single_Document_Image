@@ -73,7 +73,7 @@ When you would like to test your own image, you can use [demo.ipynb](https://git
 * [ ] calculating code (PSNR/SSIM)
 * [x] inference code
 * [x] Democode in Colab.
-* [ ] cleaning up / formatting 
+* [x] cleaning up / formatting 
 * [ ] Writing README
 * [ ] providing pretrained model
 * [ ] providing synthesized data
