@@ -77,7 +77,7 @@ class TrainLoggerBEDSRNet(object):
             "train_d_loss",
             "val_time[sec]",
             "val_g_loss",
-            "val_d_loss"
+            "val_d_loss",
         ]
 
         if resume:

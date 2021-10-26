@@ -6,24 +6,16 @@ from logging import DEBUG, INFO, basicConfig, getLogger
 
 import torch
 import torch.optim as optim
-import wandb
-
-from albumentations import (
-    Compose,
-    RandomResizedCrop,
-    Resize,
-    Rotate,
-    HorizontalFlip,
-    VerticalFlip,
-    Transpose,
-    ColorJitter,
-    CoarseDropout,
-    Normalize,
-    Affine,
-)
-
+from albumentations import Affine  # noqa
+from albumentations import CoarseDropout  # noqa
+from albumentations import ColorJitter  # noqa
+from albumentations import Rotate  # noqa
+from albumentations import Transpose  # noqa
+from albumentations import VerticalFlip  # noqa
+from albumentations import Compose, HorizontalFlip, Normalize, RandomResizedCrop, Resize
 from albumentations.pytorch import ToTensorV2
 
+import wandb
 from libs.checkpoint import resume_BEDSRNet, save_checkpoint_BEDSRNet
 from libs.config import get_config
 from libs.dataset import get_dataloader
@@ -102,12 +94,18 @@ def main() -> None:
         [
             RandomResizedCrop(config.height, config.width),
             HorizontalFlip(),
-            Normalize(mean=(0.5, ), std=(0.5, )),
-            ToTensorV2()
-            ]
+            Normalize(mean=(0.5,), std=(0.5,)),
+            ToTensorV2(),
+        ]
     )
 
-    val_transform = Compose([Resize(512, 512), Normalize(mean=(0.5, ), std=(0.5, )), ToTensorV2()])
+    val_transform = Compose(
+        [
+            Resize(config.height, config.width),
+            Normalize(mean=(0.5,), std=(0.5,)),
+            ToTensorV2(),
+        ]
+    )
 
     train_loader = get_dataloader(
         config.dataset_name,
@@ -132,12 +130,9 @@ def main() -> None:
         transform=val_transform,
     )
 
-    # the number of classes
-    n_classes = 1
-
     # define a model
-    benet = get_model('cam_benet', in_channels=3, pretrained=True)
-    srnet = get_model('srnet', pretrained=config.pretrained)
+    benet = get_model("cam_benet", in_channels=3, pretrained=True)
+    srnet = get_model("srnet", pretrained=config.pretrained)
     generator, discriminator = srnet[0], srnet[1]
 
     # send the model to cuda/cpu
@@ -145,8 +140,16 @@ def main() -> None:
     generator.to(device)
     discriminator.to(device)
 
-    optimizerG = optim.Adam(generator.parameters(), lr=config.learning_rate, betas=(config.beta1, config.beta2))
-    optimizerD = optim.Adam(discriminator.parameters(), lr=config.learning_rate, betas=(config.beta1, config.beta2))
+    optimizerG = optim.Adam(
+        generator.parameters(),
+        lr=config.learning_rate,
+        betas=(config.beta1, config.beta2),
+    )
+    optimizerD = optim.Adam(
+        discriminator.parameters(),
+        lr=config.learning_rate,
+        betas=(config.beta1, config.beta2),
+    )
 
     lambda_dict = {"lambda1": config.lambda1, "lambda2": config.lambda2}
 
@@ -157,7 +160,18 @@ def main() -> None:
 
     # resume if you want
     if args.resume:
-        begin_epoch, generator, discriminator, optimizerG, optimizerD, best_g_loss, best_d_loss = resume_BEDSRNet(resume_path, generator, discriminator, optimizerG, optimizerD)
+        resume_path = os.path.join(result_path, "checkpoint.pth")
+        (
+            begin_epoch,
+            generator,
+            discriminator,
+            optimizerG,
+            optimizerD,
+            best_g_loss,
+            best_d_loss,
+        ) = resume_BEDSRNet(
+            resume_path, generator, discriminator, optimizerG, optimizerD
+        )
 
     log_path = os.path.join(result_path, "log.csv")
     train_logger = TrainLoggerBEDSRNet(log_path, resume=args.resume)
@@ -170,12 +184,10 @@ def main() -> None:
         wandb.init(
             name=experiment_name,
             config=config,
-            project="bedsrnet",
+            project="BEDSR-Net",
             job_type="training",
-            #dirs="./wandb_result/",
         )
         # Magic
-        #wandb.watch(model, log="all")
         wandb.watch(generator, log="all")
         wandb.watch(discriminator, log="all")
 
@@ -185,14 +197,23 @@ def main() -> None:
     for epoch in range(begin_epoch, config.max_epoch):
         # training
         start = time.time()
-        train_g_loss, train_d_loss = train(
-            train_loader, generator, discriminator, benet, criterion, lambda_dict, optimizerG, optimizerD, epoch, device
+        train_g_loss, train_d_loss, train_result_images = train(
+            train_loader,
+            generator,
+            discriminator,
+            benet,
+            criterion,
+            lambda_dict,
+            optimizerG,
+            optimizerD,
+            epoch,
+            device,
         )
         train_time = int(time.time() - start)
 
         # validation
         start = time.time()
-        val_g_loss, val_d_loss = evaluate(
+        val_g_loss, val_d_loss, val_result_images = evaluate(
             val_loader, generator, discriminator, benet, criterion, lambda_dict, device
         )
         val_time = int(time.time() - start)
@@ -203,15 +224,24 @@ def main() -> None:
             best_d_loss = val_d_loss
             torch.save(
                 generator.state_dict(),
-                os.path.join(result_path, "pretrained_generator_for_srnet.prm"),
+                os.path.join(result_path, "pretrained_g_srnet.prm"),
             )
             torch.save(
                 discriminator.state_dict(),
-                os.path.join(result_path, "pretrained_discriminator_for_srnet.prm"),
+                os.path.join(result_path, "pretrained_d_srnet.prm"),
             )
 
         # save checkpoint every epoch
-        save_checkpoint_BEDSRNet(result_path, epoch, generator, discriminator, optimizerG, optimizerD, best_g_loss, best_d_loss)
+        save_checkpoint_BEDSRNet(
+            result_path,
+            epoch,
+            generator,
+            discriminator,
+            optimizerG,
+            optimizerD,
+            best_g_loss,
+            best_d_loss,
+        )
 
         # write logs to dataframe and csv file
         train_logger.update(
@@ -223,7 +253,7 @@ def main() -> None:
             train_d_loss,
             val_time,
             val_g_loss,
-            val_d_loss
+            val_d_loss,
         )
 
         # save logs to wandb
@@ -238,13 +268,15 @@ def main() -> None:
                     "val_time[sec]": val_time,
                     "val_g_loss": val_g_loss,
                     "val_d_loss": val_d_loss,
+                    "train_image": wandb.Image(train_result_images, caption="train"),
+                    "val_image": wandb.Image(val_result_images, caption="val"),
                 },
                 step=epoch,
             )
 
     # save models
-    torch.save(generator.state_dict(), os.path.join(result_path, "g_checkpoint.prm"))
-    torch.save(discriminator.state_dict(), os.path.join(result_path, "d_checkpoint.prm"))
+    torch.save(generator.state_dict(), os.path.join(result_path, "g_final.prm"))
+    torch.save(discriminator.state_dict(), os.path.join(result_path, "d_final.prm"))
 
     # delete checkpoint
     os.remove(os.path.join(result_path, "g_checkpoint.pth"))

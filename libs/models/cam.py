@@ -1,12 +1,12 @@
 # This module criated by yiskw713
 # https://github.com/yiskw713/SmoothGradCAMplusplus
+from statistics import mean, mode
+
 import torch
 import torch.nn.functional as F
 
-from statistics import mode, mean
 
-
-class SaveValues():
+class SaveValues:
     def __init__(self, m):
         # register a hook to save values of activations and gradients
         self.activations = None
@@ -26,12 +26,13 @@ class SaveValues():
 
 
 class CAM(object):
-    """ Class Activation Mapping """
+    """Class Activation Mapping"""
 
     def __init__(self, model, target_layer):
         """
         Args:
-            model: a base model to get CAM which have global pooling and fully connected layer.
+            model: a base model to get CAM which have
+            global pooling and fully connected layer.
             target_layer: conv_layer before Global Average Pooling
         """
 
@@ -61,8 +62,7 @@ class CAM(object):
             # print("predicted class ids {}\t probability {}".format(idx, prob))
 
         # cam can be calculated from the weights of linear layer and activations
-        weight_fc = list(
-            self.model._modules.get('fc').parameters())[0].to('cpu').data
+        weight_fc = list(self.model._modules.get("fc").parameters())[0].to("cpu").data
 
         cam = self.getCAM(self.values, weight_fc, idx)
 
@@ -72,13 +72,13 @@ class CAM(object):
         return self.forward(x)
 
     def getCAM(self, values, weight_fc, idx):
-        '''
+        """
         values: the activations and gradients of target_layer
             activations: feature map before GAP.  shape => (1, C, H, W)
         weight_fc: the weight of fully connected layer.  shape => (num_classes, C)
         idx: predicted class id
         cam: class activation map.  shape => (1, num_classes, H, W)
-        '''
+        """
 
         cam = F.conv2d(values.activations, weight=weight_fc[:, :, None, None])
         _, _, h, w = cam.shape
@@ -94,14 +94,15 @@ class CAM(object):
 
 
 class GradCAM(CAM):
-    """ Grad CAM """
+    """Grad CAM"""
 
     def __init__(self, model, target_layer):
         super().__init__(model, target_layer)
 
         """
         Args:
-            model: a base model to get CAM, which need not have global pooling and fully connected layer.
+            model: a base model to get CAM, which
+            need not have global pooling and fully connected layer.
             target_layer: conv_layer you want to visualize
         """
 
@@ -134,13 +135,13 @@ class GradCAM(CAM):
         return self.forward(x)
 
     def getGradCAM(self, values, score, idx):
-        '''
+        """
         values: the activations and gradients of target_layer
             activations: feature map before GAP.  shape => (1, C, H, W)
         score: the output of the model before softmax
         idx: predicted class id
         cam: class activation map.  shape=> (1, 1, H, W)
-        '''
+        """
 
         self.model.zero_grad()
 
@@ -162,7 +163,7 @@ class GradCAM(CAM):
 
 
 class GradCAMpp(CAM):
-    """ Grad CAM plus plus """
+    """Grad CAM plus plus"""
 
     def __init__(self, model, target_layer):
         super().__init__(model, target_layer)
@@ -200,13 +201,13 @@ class GradCAMpp(CAM):
         return self.forward(x)
 
     def getGradCAMpp(self, values, score, idx):
-        '''
+        """
         values: the activations and gradients of target_layer
             activations: feature map before GAP.  shape => (1, C, H, W)
         score: the output of the model before softmax. shape => (1, n_classes)
         idx: predicted class id
         cam: class activation map.  shape=> (1, 1, H, W)
-        '''
+        """
 
         self.model.zero_grad()
 
@@ -222,7 +223,8 @@ class GradCAMpp(CAM):
         ag = activations * gradients.pow(3)
         denominator += ag.view(n, c, -1).sum(-1, keepdim=True).view(n, c, 1, 1)
         denominator = torch.where(
-            denominator != 0.0, denominator, torch.ones_like(denominator))
+            denominator != 0.0, denominator, torch.ones_like(denominator)
+        )
         alpha = numerator / (denominator + 1e-7)
 
         relu_grad = F.relu(score[0, idx].exp() * gradients)
@@ -238,7 +240,7 @@ class GradCAMpp(CAM):
 
 
 class SmoothGradCAMpp(CAM):
-    """ Smooth Grad CAM plus plus """
+    """Smooth Grad CAM plus plus"""
 
     def __init__(self, model, target_layer, n_samples=25, stdev_spread=0.15):
         super().__init__(model, target_layer)
@@ -294,15 +296,14 @@ class SmoothGradCAMpp(CAM):
             numerator = gradients.pow(2)
             denominator = 2 * gradients.pow(2)
             ag = activations * gradients.pow(3)
-            denominator += \
-                ag.view(n, c, -1).sum(-1, keepdim=True).view(n, c, 1, 1)
+            denominator += ag.view(n, c, -1).sum(-1, keepdim=True).view(n, c, 1, 1)
             denominator = torch.where(
-                denominator != 0.0, denominator, torch.ones_like(denominator))
+                denominator != 0.0, denominator, torch.ones_like(denominator)
+            )
             alpha = numerator / (denominator + 1e-7)
 
             relu_grad = F.relu(score[0, idx].exp() * gradients)
-            weights = \
-                (alpha * relu_grad).view(n, c, -1).sum(-1).view(n, c, 1, 1)
+            weights = (alpha * relu_grad).view(n, c, -1).sum(-1).view(n, c, 1, 1)
 
             # shape => (1, 1, H', W')
             cam = (weights * activations).sum(1, keepdim=True)
