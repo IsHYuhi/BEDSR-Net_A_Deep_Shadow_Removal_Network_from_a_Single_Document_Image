@@ -6,23 +6,16 @@ from logging import DEBUG, INFO, basicConfig, getLogger
 
 import torch
 import torch.optim as optim
-import wandb
-
-from albumentations import (
-    Compose,
-    RandomResizedCrop,
-    Rotate,
-    HorizontalFlip,
-    VerticalFlip,
-    Transpose,
-    ColorJitter,
-    CoarseDropout,
-    Normalize,
-    Affine,
-)
-
+from albumentations import Affine  # noqa
+from albumentations import CoarseDropout  # noqa
+from albumentations import ColorJitter  # noqa
+from albumentations import Rotate  # noqa
+from albumentations import Transpose  # noqa
+from albumentations import VerticalFlip  # noqa
+from albumentations import Compose, HorizontalFlip, Normalize, RandomResizedCrop, Resize
 from albumentations.pytorch import ToTensorV2
 
+import wandb
 from libs.checkpoint import resume, save_checkpoint
 from libs.config import get_config
 from libs.dataset import get_dataloader
@@ -101,13 +94,18 @@ def main() -> None:
         [
             RandomResizedCrop(config.height, config.width),
             HorizontalFlip(),
-            ColorJitter(brightness=0.5, contrast=1.5, saturation=2),
-            Normalize(mean=(0.5, ), std=(0.5, )),
-            ToTensorV2()
-            ]
+            Normalize(mean=(0.5,), std=(0.5,)),
+            ToTensorV2(),
+        ]
     )
 
-    val_transform = Compose([Normalize(mean=(0.5, ), std=(0.5, )), ToTensorV2()])
+    val_transform = Compose(
+        [
+            Resize(config.height, config.width),
+            Normalize(mean=(0.5,), std=(0.5,)),
+            ToTensorV2(),
+        ]
+    )
 
     train_loader = get_dataloader(
         config.dataset_name,
@@ -134,7 +132,7 @@ def main() -> None:
 
     # define a model
     model = get_model(config.model, in_channels=3, pretrained=config.pretrained)
-    
+
     # send the model to cuda/cpu
     model.to(device)
 
@@ -160,9 +158,8 @@ def main() -> None:
         wandb.init(
             name=experiment_name,
             config=config,
-            project="benet",
+            project="BEDSR-Net",
             job_type="training",
-            #dirs="./wandb_result/",
         )
         # Magic
         wandb.watch(model, log="all")
@@ -173,16 +170,12 @@ def main() -> None:
     for epoch in range(begin_epoch, config.max_epoch):
         # training
         start = time.time()
-        train_loss = train(
-            train_loader, model, criterion, optimizer, epoch, device
-        )
+        train_loss = train(train_loader, model, criterion, optimizer, epoch, device)
         train_time = int(time.time() - start)
 
         # validation
         start = time.time()
-        val_loss = evaluate(
-            val_loader, model, criterion, device
-        )
+        val_loss = evaluate(val_loader, model, criterion, device)
         val_time = int(time.time() - start)
 
         # save a model if top1 acc is higher than ever
@@ -220,10 +213,10 @@ def main() -> None:
             )
 
     # save models
-    torch.save(model.state_dict(), os.path.join(result_path, "checkpoint.prm"))
+    torch.save(model.state_dict(), os.path.join(result_path, "final.prm"))
 
     # delete checkpoint
-    os.remove(os.path.join(result_path, "checkpoint.pth"))
+    os.remove(os.path.join(result_path, "checkpoint.prm"))
 
     logger.info("Done")
 

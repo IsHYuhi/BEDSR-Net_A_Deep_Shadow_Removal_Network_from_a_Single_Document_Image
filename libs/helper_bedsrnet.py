@@ -1,28 +1,28 @@
-
 import time
 from logging import getLogger
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from numpy.lib.shape_base import apply_along_axis
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 from torch.autograd import Variable
+from torch.utils.data import DataLoader
 
 from .meter import AverageMeter, ProgressMeter
-from .metric import calc_accuracy
+from .visualize_grid import make_grid
 
 __all__ = ["train", "evaluate"]
 
 logger = getLogger(__name__)
+
 
 def set_requires_grad(nets, requires_grad=False):
     for net in nets:
         if net is not None:
             for param in net.parameters():
                 param.requires_grad = requires_grad
+
 
 def do_one_iteration(
     sample: Dict[str, Any],
@@ -35,7 +35,9 @@ def do_one_iteration(
     lambda_dict: Dict,
     optimizerG: Optional[optim.Optimizer] = None,
     optimizerD: Optional[optim.Optimizer] = None,
-) -> Tuple[int, float, float, np.ndarray, np.ndarray]:
+) -> Tuple[
+    int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+]:
 
     if iter_type not in ["train", "evaluate"]:
         message = "iter_type must be either 'train' or 'evaluate'."
@@ -47,7 +49,11 @@ def do_one_iteration(
         logger.error(message)
         raise ValueError(message)
 
-    Tensor = torch.cuda.FloatTensor if device != torch.device("cpu") else torch.FloatTensor
+    Tensor = (
+        torch.cuda.FloatTensor  # type: ignore
+        if device != torch.device("cpu")
+        else torch.FloatTensor
+    )
 
     x = sample["img"].to(device)
     gt = sample["gt"].to(device)
@@ -65,12 +71,11 @@ def do_one_iteration(
         back_grounds = []
         for i in range(batch_size):
             color, cam, _ = benet(x[i].unsqueeze(dim=0))
-            cam = (cam-0.5)/0.5 # clamp [-1.0, 1.0]
+            cam = (cam - 0.5) / 0.5  # clamp [-1.0, 1.0]
             cams.append(cam.detach())
-            back_color = torch.repeat_interleave(color.detach(), h*w, dim=0)
+            back_color = torch.repeat_interleave(color.detach(), h * w, dim=0)
             back_grounds.append(back_color.reshape(1, c, h, w))
-        
-    
+
     attention_map = torch.cat(cams, dim=0)
     back_ground = torch.cat(back_grounds, dim=0)
 
@@ -78,7 +83,7 @@ def do_one_iteration(
     back_ground = back_ground.to(device)
 
     input = torch.cat([x, attention_map, back_ground], dim=1)
-    
+
     shadow_removal_image = generator(input.to(device))
 
     fake = torch.cat([x, shadow_removal_image], dim=1)
@@ -102,7 +107,7 @@ def do_one_iteration(
         optimizerD.step()
 
     # train generator
-    if iter_type == "train" and optimizerD is not None:
+    if iter_type == "train" and optimizerG is not None:
         set_requires_grad([discriminator], False)
         optimizerG.zero_grad()
 
@@ -119,13 +124,22 @@ def do_one_iteration(
         optimizerG.step()
 
     # measure PSNR and SSIM TODO
-    gt = gt.to("cpu").numpy()
+    x = x.detach().to("cpu").numpy()
+    gt = gt.detach().to("cpu").numpy()
     pred = shadow_removal_image.detach().to("cpu").numpy()
     attention_map = attention_map.detach().to("cpu").numpy()
     back_ground = back_ground.detach().to("cpu").numpy()
 
-
-    return batch_size, G_loss.item(), D_loss.item(), gt, pred, attention_map, back_ground
+    return (
+        batch_size,
+        G_loss.item(),
+        D_loss.item(),
+        x,
+        gt,
+        pred,
+        attention_map,
+        back_ground,
+    )
 
 
 def train(
@@ -140,23 +154,26 @@ def train(
     epoch: int,
     device: str,
     interval_of_progress: int = 50,
-) -> Tuple[float, float, float]:
+) -> Tuple[float, float, np.ndarray]:
 
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
     g_losses = AverageMeter("Loss", ":.4e")
     d_losses = AverageMeter("Loss", ":.4e")
-    #top1 = AverageMeter("Acc@1", ":6.2f")
+    # top1 = AverageMeter("Acc@1", ":6.2f")
 
     progress = ProgressMeter(
         len(loader),
-        [batch_time, data_time, g_losses, d_losses],#, top1
+        [batch_time, data_time, g_losses, d_losses],
         prefix="Epoch: [{}]".format(epoch),
     )
 
     # keep predicted results and gts for calculate F1 Score
-    gts = []
-    preds = []
+    inputs: List[np.ndarary] = []
+    gts: List[np.ndarray] = []
+    preds: List[np.ndarray] = []
+    attention_maps: List[np.ndarray] = []
+    back_grounds: List[np.ndarray] = []
 
     # switch to train mode
     generator.train()
@@ -167,16 +184,37 @@ def train(
         # measure data loading time
         data_time.update(time.time() - end)
 
-        batch_size, g_loss, d_loss, gt, pred, attention_map, back_ground = do_one_iteration(
-            sample, generator, discriminator, benet, criterion, device, "train", lambda_dict, optimizerG, optimizerD
+        (
+            batch_size,
+            g_loss,
+            d_loss,
+            input,
+            gt,
+            pred,
+            attention_map,
+            back_ground,
+        ) = do_one_iteration(
+            sample,
+            generator,
+            discriminator,
+            benet,
+            criterion,
+            device,
+            "train",
+            lambda_dict,
+            optimizerG,
+            optimizerD,
         )
 
         g_losses.update(g_loss, batch_size)
         d_losses.update(d_loss, batch_size)
 
         # save the ground truths and predictions in lists
-        #gts += list(gt)
-        #preds += list(pred)
+        inputs += list(input)
+        gts += list(gt)
+        preds += list(pred)
+        attention_maps += list(attention_map)
+        back_grounds += list(back_ground)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -186,18 +224,29 @@ def train(
         if i != 0 and i % interval_of_progress == 0:
             progress.display(i)
 
-    return g_losses.get_average(), d_losses.get_average()
+    result_images = make_grid([inputs[:5], preds[:5], gts[:5], back_grounds[:5]])
+
+    return g_losses.get_average(), d_losses.get_average(), result_images
 
 
 def evaluate(
-    loader: DataLoader, generator: nn.Module, discriminator: nn.Module, benet: nn.Module, criterion: Any, lambda_dict: Dict, device: str
-) -> Tuple[float, float]:
+    loader: DataLoader,
+    generator: nn.Module,
+    discriminator: nn.Module,
+    benet: nn.Module,
+    criterion: Any,
+    lambda_dict: Dict,
+    device: str,
+) -> Tuple[float, float, np.ndarray]:
     g_losses = AverageMeter("Loss", ":.4e")
     d_losses = AverageMeter("Loss", ":.4e")
 
     # keep predicted results and gts for calculate F1 Score
-    gts = []
-    preds = []
+    inputs: List[np.ndarary] = []
+    gts: List[np.ndarray] = []
+    preds: List[np.ndarray] = []
+    attention_maps: List[np.ndarray] = []
+    back_grounds: List[np.ndarray] = []
 
     # switch to evaluate mode
     generator.eval()
@@ -205,15 +254,36 @@ def evaluate(
 
     with torch.no_grad():
         for sample in loader:
-            batch_size, g_loss, d_loss, gt, pred, attention_map, back_ground = do_one_iteration(
-                sample, generator, discriminator, benet, criterion, device, "evaluate", lambda_dict
+            (
+                batch_size,
+                g_loss,
+                d_loss,
+                input,
+                gt,
+                pred,
+                attention_map,
+                back_ground,
+            ) = do_one_iteration(
+                sample,
+                generator,
+                discriminator,
+                benet,
+                criterion,
+                device,
+                "evaluate",
+                lambda_dict,
             )
 
             g_losses.update(g_loss, batch_size)
             d_losses.update(d_loss, batch_size)
 
             # save the ground truths and predictions in lists
-            #gts += list(gt)
-            #preds += list(pred)
+            inputs += list(input)
+            gts += list(gt)
+            preds += list(pred)
+            attention_maps += list(attention_map)
+            back_grounds += list(back_ground)
 
-    return g_losses.get_average(), d_losses.get_average()
+    result_images = make_grid([inputs[:5], preds[:5], gts[:5], back_grounds[:5]])
+
+    return g_losses.get_average(), d_losses.get_average(), result_images

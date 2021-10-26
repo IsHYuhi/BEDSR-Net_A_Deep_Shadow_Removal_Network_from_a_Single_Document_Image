@@ -1,4 +1,3 @@
-
 import time
 from logging import getLogger
 from typing import Any, Dict, Optional, Tuple
@@ -7,11 +6,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import confusion_matrix, f1_score
 from torch.utils.data import DataLoader
 
 from .meter import AverageMeter, ProgressMeter
-from .metric import calc_accuracy
 
 __all__ = ["train", "evaluate"]
 
@@ -38,7 +35,7 @@ def do_one_iteration(
         raise ValueError(message)
 
     x = sample["img"].to(device)
-    t = sample["bgr"].to(device)
+    t = sample["rgb"].to(device)
 
     batch_size = x.shape[0]
 
@@ -67,7 +64,7 @@ def train(
     epoch: int,
     device: str,
     interval_of_progress: int = 50,
-) -> Tuple[float, float, float]:
+) -> float:
 
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
@@ -75,7 +72,7 @@ def train(
 
     progress = ProgressMeter(
         len(loader),
-        [batch_time, data_time, losses],#, top1
+        [batch_time, data_time, losses],  # , top1
         prefix="Epoch: [{}]".format(epoch),
     )
 
@@ -109,13 +106,12 @@ def train(
         if i != 0 and i % interval_of_progress == 0:
             progress.display(i)
 
-
     return losses.get_average()
 
 
 def evaluate(
     loader: DataLoader, model: nn.Module, criterion: Any, device: str
-) -> Tuple[float]:
+) -> float:
     losses = AverageMeter("Loss", ":.4e")
 
     # keep predicted results and gts for calculate F1 Score

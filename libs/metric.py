@@ -2,7 +2,8 @@ from typing import List, Tuple
 
 import torch
 
-# TODO add PSNR and SSIM 
+
+# TODO add PSNR and SSIM
 def calc_accuracy(
     output: torch.Tensor, target: torch.Tensor, topk: Tuple[int] = (1,)
 ) -> List[float]:
