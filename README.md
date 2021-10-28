@@ -54,10 +54,13 @@ The data folders should be:
 ### Training BEDSR-Net
 ```python3 train_bedsrnet.py ./configs/model\=bedsrnet/config.yaml```
 
+You can use W&B by ```--use_wandb```.
+
 ## Testing
+Please check ```demo.ipynb```.
 
 ### Trained model
-You can download [pretrained models](https://drive.google.com/file/d/1leCrtOLOB6xWGhCFdc2agFQtV21z41Yq/view?usp=sharing) trained on Jung dataset.
+You can download [pretrained models](https://drive.google.com/file/d/1h56mAFboYwsUsSFCSM34HNekJFMtU1dg/view?usp=sharing) trained on Jung dataset.
 
 When you would like to test your own image, you can use [demo.ipynb](https://github.com/IsHYuhi/BEDSR-Net_A_Deep_Shadow_Removal_Network_from_a_Single_Document_Image/blob/main/demo.ipynb) .
 
@@ -70,10 +73,10 @@ When you would like to test your own image, you can use [demo.ipynb](https://git
 * [x] implementation of SR-Net
 * [x] training code for BEDSR-Net
 * [ ] implementation of ST-CGAN-BE
-* [ ] calculating code (PSNR/SSIM)
+* [x] calculating code (PSNR/SSIM)
 * [x] inference code
 * [x] Democode in Colab.
 * [x] cleaning up / formatting 
 * [ ] Writing README
-* [ ] providing pretrained model
+* [x] providing pretrained model
 * [ ] providing synthesized data
