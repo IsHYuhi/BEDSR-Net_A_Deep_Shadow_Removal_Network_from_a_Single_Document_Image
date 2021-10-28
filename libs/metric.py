@@ -1,9 +1,39 @@
 from typing import List, Tuple
 
+import numpy as np
 import torch
+from skimage.metrics import peak_signal_noise_ratio as psnr
+from skimage.metrics import structural_similarity as ssim
 
 
-# TODO add PSNR and SSIM
+def calc_psnr(gts: List[np.ndarray], preds: List[np.ndarray]) -> float:
+    psnrs: List[float] = []
+    for gt, pred in zip(gts, preds):
+        psnrs.append(
+            psnr(
+                gt.transpose([1, 2, 0]) * 0.5 + 0.5,
+                pred.transpose([1, 2, 0]) * 0.5 + 0.5,
+                data_range=1,
+            ),
+        )
+
+    return np.mean(psnrs)
+
+
+def calc_ssim(gts: List[np.ndarray], preds: List[np.ndarray]) -> float:
+    ssims: List[float] = []
+    for gt, pred in zip(gts, preds):
+        ssims.append(
+            ssim(
+                gt.transpose([1, 2, 0]) * 0.5 + 0.5,
+                pred.transpose([1, 2, 0]) * 0.5 + 0.5,
+                multichannel=True,
+            ),
+        )
+
+    return np.mean(ssims)
+
+
 def calc_accuracy(
     output: torch.Tensor, target: torch.Tensor, topk: Tuple[int] = (1,)
 ) -> List[float]:

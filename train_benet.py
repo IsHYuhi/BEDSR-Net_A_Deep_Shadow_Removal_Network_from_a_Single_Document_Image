@@ -216,7 +216,7 @@ def main() -> None:
     torch.save(model.state_dict(), os.path.join(result_path, "final.prm"))
 
     # delete checkpoint
-    os.remove(os.path.join(result_path, "checkpoint.prm"))
+    os.remove(os.path.join(result_path, "checkpoint.pth"))
 
     logger.info("Done")
 

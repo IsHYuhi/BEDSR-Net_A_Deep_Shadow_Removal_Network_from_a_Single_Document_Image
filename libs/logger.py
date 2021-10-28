@@ -78,6 +78,10 @@ class TrainLoggerBEDSRNet(object):
             "val_time[sec]",
             "val_g_loss",
             "val_d_loss",
+            "train_psnr",
+            "train_ssim",
+            "val_psnr",
+            "val_ssim",
         ]
 
         if resume:
@@ -109,6 +113,10 @@ class TrainLoggerBEDSRNet(object):
         val_time: int,
         val_g_loss: float,
         val_d_loss: float,
+        train_psnr: float,
+        train_ssim: float,
+        val_psnr: float,
+        val_ssim: float,
     ) -> None:
         tmp = pd.Series(
             [
@@ -121,6 +129,10 @@ class TrainLoggerBEDSRNet(object):
                 val_time,
                 val_g_loss,
                 val_d_loss,
+                train_psnr,
+                train_ssim,
+                val_psnr,
+                val_ssim,
             ],
             index=self.columns,
         )
@@ -132,4 +144,6 @@ class TrainLoggerBEDSRNet(object):
             f"epoch: {epoch}\tepoch time[sec]: {train_time + val_time}\tlr: {lrG}\t"
             f"train g loss: {train_g_loss:.4f}\tval g loss: {val_g_loss:.4f}\t"
             f"train d loss: {train_d_loss:.4f}\tval d loss: {val_d_loss:.4f}\t"
+            f"train psnr: {train_d_loss:.4f}\tval psnr: {val_d_loss:.4f}\t"
+            f"train ssim: {train_d_loss:.4f}\tval ssim: {val_d_loss:.4f}\t"
         )
