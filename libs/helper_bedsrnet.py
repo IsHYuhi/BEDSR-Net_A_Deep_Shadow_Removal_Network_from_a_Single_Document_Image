@@ -10,6 +10,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
 from .meter import AverageMeter, ProgressMeter
+from .metric import calc_psnr, calc_ssim
 from .visualize_grid import make_grid
 
 __all__ = ["train", "evaluate"]
@@ -36,7 +37,16 @@ def do_one_iteration(
     optimizerG: Optional[optim.Optimizer] = None,
     optimizerD: Optional[optim.Optimizer] = None,
 ) -> Tuple[
-    int, float, float, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+    int,
+    float,
+    float,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    float,
+    float,
 ]:
 
     if iter_type not in ["train", "evaluate"]:
@@ -123,12 +133,14 @@ def do_one_iteration(
         G_loss.backward()
         optimizerG.step()
 
-    # measure PSNR and SSIM TODO
     x = x.detach().to("cpu").numpy()
     gt = gt.detach().to("cpu").numpy()
     pred = shadow_removal_image.detach().to("cpu").numpy()
     attention_map = attention_map.detach().to("cpu").numpy()
     back_ground = back_ground.detach().to("cpu").numpy()
+
+    psnr_score = calc_psnr(list(gt), list(pred))
+    ssim_score = calc_ssim(list(gt), list(pred))
 
     return (
         batch_size,
@@ -139,6 +151,8 @@ def do_one_iteration(
         pred,
         attention_map,
         back_ground,
+        psnr_score,
+        ssim_score,
     )
 
 
@@ -154,17 +168,18 @@ def train(
     epoch: int,
     device: str,
     interval_of_progress: int = 50,
-) -> Tuple[float, float, np.ndarray]:
+) -> Tuple[float, float, float, float, np.ndarray]:
 
     batch_time = AverageMeter("Time", ":6.3f")
     data_time = AverageMeter("Data", ":6.3f")
     g_losses = AverageMeter("Loss", ":.4e")
     d_losses = AverageMeter("Loss", ":.4e")
-    # top1 = AverageMeter("Acc@1", ":6.2f")
+    psnr_scores = AverageMeter("PSNR", ":.4e")
+    ssim_scores = AverageMeter("SSIM", ":.4e")
 
     progress = ProgressMeter(
         len(loader),
-        [batch_time, data_time, g_losses, d_losses],
+        [batch_time, data_time, g_losses, d_losses, psnr_scores, ssim_scores],
         prefix="Epoch: [{}]".format(epoch),
     )
 
@@ -193,6 +208,8 @@ def train(
             pred,
             attention_map,
             back_ground,
+            psnr_score,
+            ssim_score,
         ) = do_one_iteration(
             sample,
             generator,
@@ -208,6 +225,8 @@ def train(
 
         g_losses.update(g_loss, batch_size)
         d_losses.update(d_loss, batch_size)
+        psnr_scores.update(psnr_score, batch_size)
+        ssim_scores.update(ssim_score, batch_size)
 
         # save the ground truths and predictions in lists
         inputs += list(input)
@@ -224,9 +243,17 @@ def train(
         if i != 0 and i % interval_of_progress == 0:
             progress.display(i)
 
-    result_images = make_grid([inputs[:5], preds[:5], gts[:5], back_grounds[:5]])
+    result_images = make_grid(
+        [inputs[:5], preds[:5], gts[:5], attention_maps[:5], back_grounds[:5]]
+    )
 
-    return g_losses.get_average(), d_losses.get_average(), result_images
+    return (
+        g_losses.get_average(),
+        d_losses.get_average(),
+        psnr_scores.get_average(),
+        ssim_scores.get_average(),
+        result_images,
+    )
 
 
 def evaluate(
@@ -237,9 +264,11 @@ def evaluate(
     criterion: Any,
     lambda_dict: Dict,
     device: str,
-) -> Tuple[float, float, np.ndarray]:
+) -> Tuple[float, float, float, float, np.ndarray]:
     g_losses = AverageMeter("Loss", ":.4e")
     d_losses = AverageMeter("Loss", ":.4e")
+    psnr_scores = AverageMeter("PSNR", ":.4e")
+    ssim_scores = AverageMeter("SSIM", ":.4e")
 
     # keep predicted results and gts for calculate F1 Score
     inputs: List[np.ndarary] = []
@@ -263,6 +292,8 @@ def evaluate(
                 pred,
                 attention_map,
                 back_ground,
+                psnr_score,
+                ssim_score,
             ) = do_one_iteration(
                 sample,
                 generator,
@@ -276,6 +307,8 @@ def evaluate(
 
             g_losses.update(g_loss, batch_size)
             d_losses.update(d_loss, batch_size)
+            psnr_scores.update(psnr_score, batch_size)
+            ssim_scores.update(ssim_score, batch_size)
 
             # save the ground truths and predictions in lists
             inputs += list(input)
@@ -284,6 +317,14 @@ def evaluate(
             attention_maps += list(attention_map)
             back_grounds += list(back_ground)
 
-    result_images = make_grid([inputs[:5], preds[:5], gts[:5], back_grounds[:5]])
+    result_images = make_grid(
+        [inputs[:5], preds[:5], gts[:5], attention_maps[:5], back_grounds[:5]]
+    )
 
-    return g_losses.get_average(), d_losses.get_average(), result_images
+    return (
+        g_losses.get_average(),
+        d_losses.get_average(),
+        psnr_scores.get_average(),
+        ssim_scores.get_average(),
+        result_images,
+    )

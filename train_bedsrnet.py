@@ -197,7 +197,7 @@ def main() -> None:
     for epoch in range(begin_epoch, config.max_epoch):
         # training
         start = time.time()
-        train_g_loss, train_d_loss, train_result_images = train(
+        train_g_loss, train_d_loss, train_psnr, train_ssim, train_result_images = train(
             train_loader,
             generator,
             discriminator,
@@ -213,7 +213,7 @@ def main() -> None:
 
         # validation
         start = time.time()
-        val_g_loss, val_d_loss, val_result_images = evaluate(
+        val_g_loss, val_d_loss, val_psnr, val_ssim, val_result_images = evaluate(
             val_loader, generator, discriminator, benet, criterion, lambda_dict, device
         )
         val_time = int(time.time() - start)
@@ -254,6 +254,10 @@ def main() -> None:
             val_time,
             val_g_loss,
             val_d_loss,
+            train_psnr,
+            train_ssim,
+            val_psnr,
+            val_ssim,
         )
 
         # save logs to wandb
@@ -268,6 +272,10 @@ def main() -> None:
                     "val_time[sec]": val_time,
                     "val_g_loss": val_g_loss,
                     "val_d_loss": val_d_loss,
+                    "train_psnr": train_psnr,
+                    "val_psnr": val_psnr,
+                    "train_ssim": train_ssim,
+                    "val_ssim": val_ssim,
                     "train_image": wandb.Image(train_result_images, caption="train"),
                     "val_image": wandb.Image(val_result_images, caption="val"),
                 },
