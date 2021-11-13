@@ -82,9 +82,10 @@ def do_one_iteration(
         for i in range(batch_size):
             color, cam, _ = benet(x[i].unsqueeze(dim=0))
             cam = (cam - 0.5) / 0.5  # clamp [-1.0, 1.0]
+            cam = torch.nan_to_num(cam, nan=0.0)
             cams.append(cam.detach())
-            back_color = torch.repeat_interleave(color.detach(), h * w, dim=0)
-            back_grounds.append(back_color.reshape(1, c, h, w))
+            back_color = color.detach().repeat_interleave(h*w).reshape(c, h, w)
+            back_grounds.append(back_color.unsqueeze(0))
 
     attention_map = torch.cat(cams, dim=0)
     back_ground = torch.cat(back_grounds, dim=0)
